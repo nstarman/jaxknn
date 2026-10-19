@@ -1,0 +1,685 @@
+{
+ "meta": {
+  "device": "cuda:0",
+  "device_kind": "NVIDIA H200",
+  "platform": "gpu",
+  "jax": "0.8.2",
+  "jaxkd": "0.1.2",
+  "jaxknn": "0.1.1.dev2",
+  "host": "node2433"
+ },
+ "rows": [
+  {
+   "lib": "jaxknn",
+   "data": "stream",
+   "n": 1000,
+   "first_s": 7.412415490951389,
+   "steady_s": 0.0006361150881275535,
+   "matches_scipy": true
+  },
+  {
+   "lib": "jaxknn_brute",
+   "data": "stream",
+   "n": 1000,
+   "first_s": 0.3876719269901514,
+   "steady_s": 0.0001439389307051897,
+   "matches_scipy": true
+  },
+  {
+   "lib": "jaxkd",
+   "data": "stream",
+   "n": 1000,
+   "first_s": 1.026138883898966,
+   "steady_s": 0.0026105589931830764,
+   "matches_scipy": null
+  },
+  {
+   "lib": "scipy",
+   "data": "stream",
+   "n": 1000,
+   "first_s": 0.02180627000052482,
+   "steady_s": 0.018634639913216233,
+   "matches_scipy": null
+  },
+  {
+   "lib": "jaxknn",
+   "data": "blob",
+   "n": 1000,
+   "first_s": 0.0018655150197446346,
+   "steady_s": 0.0007497150218114257,
+   "matches_scipy": true
+  },
+  {
+   "lib": "jaxknn_brute",
+   "data": "blob",
+   "n": 1000,
+   "first_s": 0.0006552529521286488,
+   "steady_s": 0.00013973598834127188,
+   "matches_scipy": true
+  },
+  {
+   "lib": "jaxkd",
+   "data": "blob",
+   "n": 1000,
+   "first_s": 0.010136762983165681,
+   "steady_s": 0.009894165908917785,
+   "matches_scipy": null
+  },
+  {
+   "lib": "scipy",
+   "data": "blob",
+   "n": 1000,
+   "first_s": 0.021270771976560354,
+   "steady_s": 0.018886671983636916,
+   "matches_scipy": null
+  },
+  {
+   "lib": "jaxknn",
+   "data": "interlopers",
+   "n": 1000,
+   "first_s": 0.0009240939980372787,
+   "steady_s": 0.0007521109655499458,
+   "matches_scipy": true
+  },
+  {
+   "lib": "jaxknn_brute",
+   "data": "interlopers",
+   "n": 1000,
+   "first_s": 0.00021993194241076708,
+   "steady_s": 0.0001424270449206233,
+   "matches_scipy": true
+  },
+  {
+   "lib": "jaxkd",
+   "data": "interlopers",
+   "n": 1000,
+   "first_s": 0.03250504995230585,
+   "steady_s": 0.03225537296384573,
+   "matches_scipy": null
+  },
+  {
+   "lib": "scipy",
+   "data": "interlopers",
+   "n": 1000,
+   "first_s": 0.02099736698437482,
+   "steady_s": 0.01838499796576798,
+   "matches_scipy": null
+  },
+  {
+   "lib": "jaxknn",
+   "data": "stream",
+   "n": 3000,
+   "first_s": 8.09927394904662,
+   "steady_s": 0.0007054680027067661,
+   "matches_scipy": true
+  },
+  {
+   "lib": "jaxknn_brute",
+   "data": "stream",
+   "n": 3000,
+   "first_s": 0.22651983995456249,
+   "steady_s": 0.000829074066132307,
+   "matches_scipy": true
+  },
+  {
+   "lib": "jaxkd",
+   "data": "stream",
+   "n": 3000,
+   "first_s": 1.8271151430672035,
+   "steady_s": 0.004672644892707467,
+   "matches_scipy": null
+  },
+  {
+   "lib": "scipy",
+   "data": "stream",
+   "n": 3000,
+   "first_s": 0.0247004710836336,
+   "steady_s": 0.019133672933094203,
+   "matches_scipy": null
+  },
+  {
+   "lib": "jaxknn",
+   "data": "blob",
+   "n": 3000,
+   "first_s": 0.0021470229839906096,
+   "steady_s": 0.001123909023590386,
+   "matches_scipy": true
+  },
+  {
+   "lib": "jaxknn_brute",
+   "data": "blob",
+   "n": 3000,
+   "first_s": 0.0009819879196584225,
+   "steady_s": 0.0008363890228793025,
+   "matches_scipy": true
+  },
+  {
+   "lib": "jaxkd",
+   "data": "blob",
+   "n": 3000,
+   "first_s": 0.013447038014419377,
+   "steady_s": 0.013447038014419377,
+   "matches_scipy": null
+  },
+  {
+   "lib": "scipy",
+   "data": "blob",
+   "n": 3000,
+   "first_s": 0.02203641494270414,
+   "steady_s": 0.019024732057005167,
+   "matches_scipy": null
+  },
+  {
+   "lib": "jaxknn",
+   "data": "interlopers",
+   "n": 3000,
+   "first_s": 0.0011717879679054022,
+   "steady_s": 0.001033793087117374,
+   "matches_scipy": true
+  },
+  {
+   "lib": "jaxknn_brute",
+   "data": "interlopers",
+   "n": 3000,
+   "first_s": 0.0009054909460246563,
+   "steady_s": 0.0008375520119443536,
+   "matches_scipy": true
+  },
+  {
+   "lib": "jaxkd",
+   "data": "interlopers",
+   "n": 3000,
+   "first_s": 0.12705944408662617,
+   "steady_s": 0.12705944408662617,
+   "matches_scipy": null
+  },
+  {
+   "lib": "scipy",
+   "data": "interlopers",
+   "n": 3000,
+   "first_s": 0.02142351702786982,
+   "steady_s": 0.01918666099663824,
+   "matches_scipy": null
+  },
+  {
+   "lib": "jaxknn",
+   "data": "stream",
+   "n": 10000,
+   "first_s": 12.008624366950244,
+   "steady_s": 0.0009598199976608157,
+   "matches_scipy": true
+  },
+  {
+   "lib": "jaxknn_brute",
+   "data": "stream",
+   "n": 10000,
+   "first_s": 0.24989726895000786,
+   "steady_s": 0.0071882150368765,
+   "matches_scipy": true
+  },
+  {
+   "lib": "jaxkd",
+   "data": "stream",
+   "n": 10000,
+   "first_s": 2.208338518976234,
+   "steady_s": 0.010431759990751743,
+   "matches_scipy": null
+  },
+  {
+   "lib": "scipy",
+   "data": "stream",
+   "n": 10000,
+   "first_s": 0.02538144204299897,
+   "steady_s": 0.02112513594329357,
+   "matches_scipy": null
+  },
+  {
+   "lib": "jaxknn",
+   "data": "blob",
+   "n": 10000,
+   "first_s": 0.0044811980333179235,
+   "steady_s": 0.0027729369467124343,
+   "matches_scipy": true
+  },
+  {
+   "lib": "jaxknn_brute",
+   "data": "blob",
+   "n": 10000,
+   "first_s": 0.0074981399811804295,
+   "steady_s": 0.007179146981798112,
+   "matches_scipy": true
+  },
+  {
+   "lib": "jaxkd",
+   "data": "blob",
+   "n": 10000,
+   "first_s": 0.019079476944170892,
+   "steady_s": 0.01894444297067821,
+   "matches_scipy": null
+  },
+  {
+   "lib": "scipy",
+   "data": "blob",
+   "n": 10000,
+   "first_s": 0.023837098968215287,
+   "steady_s": 0.021110445959493518,
+   "matches_scipy": null
+  },
+  {
+   "lib": "jaxknn",
+   "data": "interlopers",
+   "n": 10000,
+   "first_s": 0.002633563010022044,
+   "steady_s": 0.002374432049691677,
+   "matches_scipy": true
+  },
+  {
+   "lib": "jaxknn_brute",
+   "data": "interlopers",
+   "n": 10000,
+   "first_s": 0.007277378928847611,
+   "steady_s": 0.007160515990108252,
+   "matches_scipy": true
+  },
+  {
+   "lib": "jaxkd",
+   "data": "interlopers",
+   "n": 10000,
+   "first_s": 0.42298943910282105,
+   "steady_s": 0.4200569889508188,
+   "matches_scipy": null
+  },
+  {
+   "lib": "scipy",
+   "data": "interlopers",
+   "n": 10000,
+   "first_s": 0.023424081038683653,
+   "steady_s": 0.020932103972882032,
+   "matches_scipy": null
+  },
+  {
+   "lib": "jaxknn",
+   "data": "stream",
+   "n": 30000,
+   "first_s": 13.390246029943228,
+   "steady_s": 0.0020900890231132507,
+   "matches_scipy": true
+  },
+  {
+   "lib": "jaxknn_brute",
+   "data": "stream",
+   "n": 30000,
+   "first_s": 0.280108712031506,
+   "steady_s": 0.02929538709577173,
+   "matches_scipy": true
+  },
+  {
+   "lib": "jaxkd",
+   "data": "stream",
+   "n": 30000,
+   "first_s": 2.5081265079788864,
+   "steady_s": 0.020171563024632633,
+   "matches_scipy": null
+  },
+  {
+   "lib": "scipy",
+   "data": "stream",
+   "n": 30000,
+   "first_s": 0.03270940808579326,
+   "steady_s": 0.02625857200473547,
+   "matches_scipy": null
+  },
+  {
+   "lib": "jaxknn",
+   "data": "blob",
+   "n": 30000,
+   "first_s": 0.00430539099033922,
+   "steady_s": 0.002503825002349913,
+   "matches_scipy": true
+  },
+  {
+   "lib": "jaxknn_brute",
+   "data": "blob",
+   "n": 30000,
+   "first_s": 0.029262330965138972,
+   "steady_s": 0.029262330965138972,
+   "matches_scipy": true
+  },
+  {
+   "lib": "jaxkd",
+   "data": "blob",
+   "n": 30000,
+   "first_s": 0.03424006293062121,
+   "steady_s": 0.03378926299046725,
+   "matches_scipy": null
+  },
+  {
+   "lib": "scipy",
+   "data": "blob",
+   "n": 30000,
+   "first_s": 0.028668629936873913,
+   "steady_s": 0.026066838996484876,
+   "matches_scipy": null
+  },
+  {
+   "lib": "jaxknn",
+   "data": "interlopers",
+   "n": 30000,
+   "first_s": 0.004119405057281256,
+   "steady_s": 0.0038607739843428135,
+   "matches_scipy": true
+  },
+  {
+   "lib": "jaxknn_brute",
+   "data": "interlopers",
+   "n": 30000,
+   "first_s": 0.02922188094817102,
+   "steady_s": 0.02922188094817102,
+   "matches_scipy": true
+  },
+  {
+   "lib": "jaxkd",
+   "data": "interlopers",
+   "n": 30000,
+   "first_s": 0.847491956083104,
+   "steady_s": 0.847491956083104,
+   "matches_scipy": null
+  },
+  {
+   "lib": "scipy",
+   "data": "interlopers",
+   "n": 30000,
+   "first_s": 0.029667624039575458,
+   "steady_s": 0.025836611981503665,
+   "matches_scipy": null
+  },
+  {
+   "lib": "jaxknn",
+   "data": "stream",
+   "n": 100000,
+   "first_s": 11.511594529030845,
+   "steady_s": 0.005616546957753599,
+   "matches_scipy": true
+  },
+  {
+   "lib": "jaxknn_brute",
+   "data": "stream",
+   "n": 100000,
+   "first_s": 0.7714289750438184,
+   "steady_s": 0.1753859509481117,
+   "matches_scipy": true
+  },
+  {
+   "lib": "jaxkd",
+   "data": "stream",
+   "n": 100000,
+   "first_s": 2.946053972002119,
+   "steady_s": 0.040994746959768236,
+   "matches_scipy": null
+  },
+  {
+   "lib": "scipy",
+   "data": "stream",
+   "n": 100000,
+   "first_s": 0.0537465870147571,
+   "steady_s": 0.0440921219997108,
+   "matches_scipy": null
+  },
+  {
+   "lib": "jaxknn",
+   "data": "blob",
+   "n": 100000,
+   "first_s": 0.00868565496057272,
+   "steady_s": 0.006672749063000083,
+   "matches_scipy": true
+  },
+  {
+   "lib": "jaxknn_brute",
+   "data": "blob",
+   "n": 100000,
+   "first_s": 0.17524637607857585,
+   "steady_s": 0.17497647099662572,
+   "matches_scipy": true
+  },
+  {
+   "lib": "jaxkd",
+   "data": "blob",
+   "n": 100000,
+   "first_s": 0.04674784396775067,
+   "steady_s": 0.04674784396775067,
+   "matches_scipy": null
+  },
+  {
+   "lib": "scipy",
+   "data": "blob",
+   "n": 100000,
+   "first_s": 0.04842962499242276,
+   "steady_s": 0.045627046027220786,
+   "matches_scipy": null
+  },
+  {
+   "lib": "jaxknn",
+   "data": "interlopers",
+   "n": 100000,
+   "first_s": 0.010498982039280236,
+   "steady_s": 0.010457748081535101,
+   "matches_scipy": true
+  },
+  {
+   "lib": "jaxknn_brute",
+   "data": "interlopers",
+   "n": 100000,
+   "first_s": 0.1755651329876855,
+   "steady_s": 0.17535246000625193,
+   "matches_scipy": true
+  },
+  {
+   "lib": "jaxkd",
+   "data": "interlopers",
+   "n": 100000,
+   "first_s": 2.321884567034431,
+   "steady_s": 2.314319242024794,
+   "matches_scipy": null
+  },
+  {
+   "lib": "scipy",
+   "data": "interlopers",
+   "n": 100000,
+   "first_s": 0.05503240996040404,
+   "steady_s": 0.04650504398159683,
+   "matches_scipy": null
+  },
+  {
+   "lib": "jaxknn",
+   "data": "stream",
+   "n": 300000,
+   "first_s": 13.047280111000873,
+   "steady_s": 0.023921587970107794,
+   "matches_scipy": true
+  },
+  {
+   "lib": "jaxknn_brute",
+   "data": "stream",
+   "n": 300000,
+   "first_s": 1.925665740040131,
+   "steady_s": 1.2764600419905037,
+   "matches_scipy": true
+  },
+  {
+   "lib": "jaxkd",
+   "data": "stream",
+   "n": 300000,
+   "first_s": 3.7264880560105667,
+   "steady_s": 0.1180054449941963,
+   "matches_scipy": null
+  },
+  {
+   "lib": "scipy",
+   "data": "stream",
+   "n": 300000,
+   "first_s": 0.12796819803770632,
+   "steady_s": 0.11883816902991384,
+   "matches_scipy": null
+  },
+  {
+   "lib": "jaxknn",
+   "data": "blob",
+   "n": 300000,
+   "first_s": 0.02952336799353361,
+   "steady_s": 0.027048896998167038,
+   "matches_scipy": true
+  },
+  {
+   "lib": "jaxknn_brute",
+   "data": "blob",
+   "n": 300000,
+   "first_s": 1.2760994819691405,
+   "steady_s": 1.2760994819691405,
+   "matches_scipy": true
+  },
+  {
+   "lib": "jaxkd",
+   "data": "blob",
+   "n": 300000,
+   "first_s": 0.12604996096342802,
+   "steady_s": 0.12513665901497006,
+   "matches_scipy": null
+  },
+  {
+   "lib": "scipy",
+   "data": "blob",
+   "n": 300000,
+   "first_s": 0.1321943619986996,
+   "steady_s": 0.1291244620224461,
+   "matches_scipy": null
+  },
+  {
+   "lib": "jaxknn",
+   "data": "interlopers",
+   "n": 300000,
+   "first_s": 0.03824243601411581,
+   "steady_s": 0.03715797106269747,
+   "matches_scipy": true
+  },
+  {
+   "lib": "jaxknn_brute",
+   "data": "interlopers",
+   "n": 300000,
+   "first_s": 1.2765836369944736,
+   "steady_s": 1.2765836369944736,
+   "matches_scipy": true
+  },
+  {
+   "lib": "jaxkd",
+   "data": "interlopers",
+   "n": 300000,
+   "first_s": 11.363211603020318,
+   "steady_s": 11.363211603020318,
+   "matches_scipy": null
+  },
+  {
+   "lib": "scipy",
+   "data": "interlopers",
+   "n": 300000,
+   "first_s": 0.13125904800835997,
+   "steady_s": 0.12087880098260939,
+   "matches_scipy": null
+  },
+  {
+   "lib": "jaxknn",
+   "data": "stream",
+   "n": 1000000,
+   "first_s": 13.812914929003455,
+   "steady_s": 0.053280181949958205,
+   "matches_scipy": true
+  },
+  {
+   "lib": "jaxknn_brute",
+   "data": "stream",
+   "n": 1000000,
+   "first_s": 13.666748735005967,
+   "steady_s": 12.993255981011316,
+   "matches_scipy": true
+  },
+  {
+   "lib": "jaxkd",
+   "data": "stream",
+   "n": 1000000,
+   "first_s": 4.347319682012312,
+   "steady_s": 0.4535756439436227,
+   "matches_scipy": null
+  },
+  {
+   "lib": "scipy",
+   "data": "stream",
+   "n": 1000000,
+   "first_s": 0.42567999102175236,
+   "steady_s": 0.4014832399552688,
+   "matches_scipy": null
+  },
+  {
+   "lib": "jaxknn",
+   "data": "blob",
+   "n": 1000000,
+   "first_s": 0.05753640807233751,
+   "steady_s": 0.05352826102171093,
+   "matches_scipy": true
+  },
+  {
+   "lib": "jaxknn_brute",
+   "data": "blob",
+   "n": 1000000,
+   "first_s": 12.992135546985082,
+   "steady_s": 12.991987347020768,
+   "matches_scipy": true
+  },
+  {
+   "lib": "jaxkd",
+   "data": "blob",
+   "n": 1000000,
+   "first_s": 0.45381171407643706,
+   "steady_s": 0.45381171407643706,
+   "matches_scipy": null
+  },
+  {
+   "lib": "scipy",
+   "data": "blob",
+   "n": 1000000,
+   "first_s": 0.4586809620959684,
+   "steady_s": 0.43940082797780633,
+   "matches_scipy": null
+  },
+  {
+   "lib": "jaxknn",
+   "data": "interlopers",
+   "n": 1000000,
+   "first_s": 0.08337989309802651,
+   "steady_s": 0.08239881310146302,
+   "matches_scipy": true
+  },
+  {
+   "lib": "jaxknn_brute",
+   "data": "interlopers",
+   "n": 1000000,
+   "first_s": 12.992448488948867,
+   "steady_s": 12.992448488948867,
+   "matches_scipy": true
+  },
+  {
+   "lib": "jaxkd",
+   "data": "interlopers",
+   "n": 1000000,
+   "first_s": 77.31215509492904,
+   "steady_s": 77.28178560000379,
+   "matches_scipy": null
+  },
+  {
+   "lib": "scipy",
+   "data": "interlopers",
+   "n": 1000000,
+   "first_s": 0.45114165800623596,
+   "steady_s": 0.41493673203513026,
+   "matches_scipy": null
+  }
+ ]
+}
