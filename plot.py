@@ -4,9 +4,10 @@ import sys
 import matplotlib.pyplot as plt
 
 rows = json.load(open(sys.argv[1]))
+old = json.load(open(sys.argv[3])) if len(sys.argv) > 3 else []  # optional: jaxknn v0.1.0 run
 TITLES = {"stream": "stream", "blob": "Gaussian blob", "interlopers": "stream + 1% interlopers"}
 STYLE = {
-    "jaxknn": dict(color="#2a6fdb", label="jaxknn (jit)"),
+    "jaxknn": dict(color="#2a6fdb", label="jaxknn main (jit)" if len(sys.argv) > 3 else "jaxknn (jit)"),
     "jaxkd": dict(color="#d9822b", label="jaxkd (jit)"),
     "scipy": dict(color="#7a7a7a", ls="--", label="SciPy cKDTree (eager, all cores)"),
 }
@@ -30,6 +31,10 @@ for lib, st in STYLE.items():
         continue
     pts = sorted((r["n"], r["first_s"]) for r in rows if r["lib"] == lib and r["data"] == "stream")
     ax.semilogx(*zip(*pts), marker="o", ms=4, **st)
+pts = sorted((r["n"], r["first_s"]) for r in old if r["lib"] == "jaxknn" and r["data"] == "stream")
+if pts:
+    ax.semilogx(*zip(*pts), marker="o", ms=4, ls=":", color="#2a6fdb", alpha=0.6, label="jaxknn v0.1.0")
+    ax.legend(frameon=False)
 ax.set_title("first call (compile + run), stream")
 ax.set_xlabel("number of points n")
 ax.set_ylabel("s")
