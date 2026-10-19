@@ -34,26 +34,59 @@ In all three timing panels, SciPy is below both JAX libraries.
 | Gaussian blob | 0.35 s | 1.05 s | 0.08 s |
 | stream + interlopers | 0.52 s | 41 s | 0.08 s |
 
+## Benchmarks on GPU
+
+![All-points kNN time against n on an NVIDIA L40S for jaxknn, jaxknn's brute force, jaxkd and SciPy on three datasets, and first-call time on the stream](_static/knn_scaling_gpu_l40s.png)
+
+The same data, sizes and timing as the CPU benchmark, on one NVIDIA L40S (MIT Engaging): jaxknn `main` at f093366, jax 0.8.2 with CUDA 12, jaxkd 0.1.2 (pure JAX). It adds [`jaxknn.brute_knn`][], with SciPy's `cKDTree` on the node's 16 CPU cores for reference. Every jaxknn result matched SciPy's distances. [Script](https://github.com/nstarman/jaxknn/blob/0cad0d17e3d09db28e276100c10f61a08875cad3/gpu/bench_gpu.py), [Slurm job](https://github.com/nstarman/jaxknn/blob/0cad0d17e3d09db28e276100c10f61a08875cad3/gpu/job.sh), [plotting script](https://github.com/nstarman/jaxknn/blob/0cad0d17e3d09db28e276100c10f61a08875cad3/gpu/plot_gpu.py) and [raw numbers](https://github.com/nstarman/jaxknn/blob/0cad0d17e3d09db28e276100c10f61a08875cad3/gpu/results_NVIDIA_L40S_26373681.json).
+
+On a GPU the picture changes:
+
+- **jaxknn is the fastest of the four at scale.** It's 5–17× faster than jaxkd on clean data, at every size from 1,000 to 1,000,000 points, and 5–8× faster than SciPy at 1M points.
+- **jaxkd's interloper slowdown is still there:** 175 s at 1M points, against 83 ms for jaxknn.
+- **Brute force wins only for small inputs,** below about 3,000 points: 0.1 ms against 0.5 ms for the tree at 1,000. It grows as n², to 15 s at 1M.
+
+| steady state | jaxknn | jaxknn brute force | jaxkd (pure JAX) | SciPy (16 cores) |
+|---|---|---|---|---|
+| stream, n = 100k | 6.2 ms | 181 ms | 42 ms | 38 ms |
+| stream + interlopers, n = 100k | 10 ms | 181 ms | 2.5 s | 37 ms |
+| stream, n = 1M | 55 ms | 15 s | 944 ms | 455 ms |
+| Gaussian blob, n = 1M | 56 ms | 15 s | 955 ms | 474 ms |
+| stream + interlopers, n = 1M | 83 ms | 16 s | 175 s | 442 ms |
+
+jaxkd also has a CUDA path (`cuda=True`, from the `jaxkd-cuda` extension), which isn't in this run: the published `jaxkd-cuda` 0.0.0 source package doesn't build.
+
 ## Trade-offs
 
 ### Compile time
 
-The first call compiles. On the stream it takes 1.7–3.8 s up to 300k points, against about a second or less for jaxkd up to 100k; at 300k the two are level. At 1M points the run time dominates and jaxknn's first call is faster (6.1 s against 15.6 s).
+The first call compiles. On the CPU benchmark's stream it takes 1.7–3.8 s up to 300k points, against about a second or less for jaxkd up to 100k; at 300k the two are level. At 1M points the run time dominates and jaxknn's first call is faster (6.1 s against 15.6 s). On the L40S it's slower: ~8–14 s, against ~1–4.5 s for jaxkd.
 
-Compiling happens once per input shape and `k`. New data of the same shape reuses the compiled program, and eagerly so does any n in the same size bucket. To keep it across processes too, turn on JAX's [persistent compilation cache](https://docs.jax.dev/en/latest/persistent_compilation_cache.html):
+That cost is paid once per program, not once per tree. The compiled program depends only on shapes and settings (n, d, dtype, `k`, `leaf_size`, `frontier`), never on the points. Measured on CPU at n = 100k; JAX's caching rules are the same on GPU:
+
+- **New points reuse it,** even with a very different distribution or scale: 2.7 s for the first call under `jit`, then 0.42 s on new points.
+- **So do new trees.** A jitted [`jaxknn.tree.knn`][] query took 1.7 s on its first tree and 0.02 s on a tree built from different points.
+- **Eagerly, any n in the same size bucket reuses it.** 100k, 110k and 120k points share one compile (3.3 s, then 0.8 s).
+- **`vmap` compiles one program for a whole batch,** and inside a larger `jit` the kNN compiles once, as part of that program.
+- **What does recompile:** a different n under `jit` (there's no bucketing there), a different `k`, dtype or device.
+
+To reuse the compiled program across processes, turn on JAX's [persistent compilation cache](https://docs.jax.dev/en/latest/persistent_compilation_cache.html):
 
 ```bash
 export JAX_COMPILATION_CACHE_DIR="$HOME/.cache/jax"
 ```
 
-Or, in Python, `jax.config.update("jax_compilation_cache_dir", ...)` before the first call. Later processes then load the compiled kNN from disk; tracing still runs each time.
+Or, in Python, call `jax.config.update("jax_compilation_cache_dir", ...)` before the first call. This works for eager calls and for the raw tree: a second process's first call took 1.6 s against 3.6 s.
+
+It doesn't, by default, for `jax.jit` around [`jaxknn.knn`][] or [`jaxknn.brute_knn`][]. Under tracing, their finite-input check is an `equinox.error_if`, which is a host callback, and JAX doesn't cache programs that contain one. Setting `EQX_ON_ERROR=nan` makes them cacheable (3.7 s, then 1.2 s), at the cost of NaN output instead of an error on non-finite input.
 
 ### SciPy is faster on CPU
 
-When you don't need tracing, SciPy's `cKDTree` is 3–8× faster than jaxknn here, and compiles nothing. See [when to use SciPy instead](when-to-use-scipy-instead.md).
+When you don't need tracing, SciPy's `cKDTree` is 3–8× faster than jaxknn on the CPU benchmark, and compiles nothing. On a GPU it's the other way round: jaxknn is 5–8× faster than SciPy on 16 CPU cores at 1M points. See [when to use SciPy instead](when-to-use-scipy-instead.md).
 
-### GPU
+### On GPU
 
-Not yet measured. jaxkd is designed to be GPU-friendly and has a CUDA path; jaxknn was developed and tuned on CPU/XLA.
-
-<!-- GPU results (H200, L40S) go here once measured. -->
+jaxknn was developed and tuned on CPU/XLA: its query-chunk and overflow-tier sizes, and its selection networks, were chosen for CPU. It's already the fastest of the four on the L40S; GPU-specific tuning hasn't been tried. Open questions:
+- **jaxkd's CUDA path** hasn't been measured against it.
+- **float64** runs at a small fraction of float32's speed on workstation GPUs like the L40S.
+- **An H200 run** (a datacenter GPU) is still to come.

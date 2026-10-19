@@ -40,7 +40,7 @@ pip install jaxknn
 
 Use jaxknn when the kNN has to live inside a traced JAX program: under `jit`, `vmap` or `grad`, or on an accelerator.
 
-On a CPU, eagerly, SciPy's `cKDTree` is 3–8× faster, and the first call under `jit` compiles, which takes seconds. Against [jaxkd](https://github.com/dodgebc/jaxkd), jaxknn is 1.9–4.8× faster from 3,000 points up, and stays fast on data with scattered outliers. See [how jaxknn compares](https://nstarkman.space/jaxknn/comparison/) for the benchmarks and trade-offs.
+On a CPU, eagerly, SciPy's `cKDTree` is 3–8× faster, and the first call under `jit` compiles, which takes seconds (once per program, not once per tree). On a GPU (an NVIDIA L40S), jaxknn is the fastest: 5–8× faster than SciPy on 16 CPU cores at 1M points. Against [jaxkd](https://github.com/dodgebc/jaxkd), jaxknn is 1.9–4.8× faster from 3,000 points up, and stays fast on data with scattered outliers. See [how jaxknn compares](https://nstarkman.space/jaxknn/comparison/) for the benchmarks and trade-offs.
 
 ## Origin
 
