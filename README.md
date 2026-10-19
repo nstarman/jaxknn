@@ -42,6 +42,18 @@ Use jaxknn when the kNN has to live inside a traced JAX program: under `jit`, `v
 
 On a CPU, eagerly, SciPy's `cKDTree` is 3–8× faster, and the first call under `jit` compiles, which takes seconds (once per program, not once per tree). On a GPU (an NVIDIA L40S), jaxknn is the fastest: 5–8× faster than SciPy on 16 CPU cores at 1M points. Against [jaxkd](https://github.com/dodgebc/jaxkd), jaxknn is 1.9–4.8× faster from 3,000 points up, and stays fast on data with scattered outliers. See [how jaxknn compares](https://nstarkman.space/jaxknn/comparison/) for the benchmarks and trade-offs.
 
+## Speed
+
+All-points kNN (k = 10, 3-D float32) under `jit`, steady state, against [jaxkd](https://github.com/dodgebc/jaxkd) and SciPy's `cKDTree`. The rightmost panel is the first call, which includes compilation. Details are in [how jaxknn compares](https://nstarkman.space/jaxknn/comparison/).
+
+**On a GPU (NVIDIA L40S),** jaxknn is the fastest. At 1M points it takes 55 ms, against 944 ms for jaxkd and 455 ms for SciPy on 16 CPU cores:
+
+![All-points kNN on an NVIDIA L40S: jaxknn, jaxknn brute force, jaxkd and SciPy](https://raw.githubusercontent.com/nstarman/jaxknn/main/docs/_static/knn_scaling_gpu_l40s.png)
+
+**On a CPU (Apple M2 Pro),** SciPy is fastest when you don't need tracing. jaxknn beats jaxkd, especially on data with scattered outliers:
+
+![All-points kNN on an Apple M2 Pro CPU: jaxknn, jaxkd and SciPy](https://raw.githubusercontent.com/nstarman/jaxknn/main/docs/_static/knn_scaling.png)
+
 ## Origin
 
 jaxknn was extracted from [phasecurvefit](https://github.com/GalacticDynamics/phasecurvefit), where it is the traceable kNN behind `MSTOrderer`, with its history. See [phasecurvefit#197](https://github.com/GalacticDynamics/phasecurvefit/issues/197).
