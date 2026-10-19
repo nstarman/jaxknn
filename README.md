@@ -40,30 +40,7 @@ pip install jaxknn
 
 Use jaxknn when the kNN has to live inside a traced JAX program: under `jit`, `vmap` or `grad`, or on an accelerator.
 
-On a CPU, eagerly, SciPy's `cKDTree` is faster, because it queries with every core. Here's all-points kNN (k=10, a 3-D stream with 2% interlopers), comparing jaxknn compiled under `jit` with SciPy called eagerly. It was measured on an Apple M2 Pro under load, so the ratios matter more than the absolute times.
-
-| n | `jit` compile (first call) | jaxknn under `jit`, steady | SciPy, eager | jaxknn / SciPy |
-|---|---|---|---|---|
-| 2,000 | 9.4 s | 17.8 ms | 6.0 ms | 2.9× |
-| 10,000 | 11.6 s | 106 ms | 16.4 ms | 6.5× |
-| 100,000 | 13.2 s | 1,261 ms | 148 ms | 8.5× |
-| 1,000,000 | 26.8 s | 11,719 ms | 1,990 ms | 5.9× |
-
-The first call compiles, which takes seconds per input shape and `k`. To pay that once per machine rather than once per process, turn on JAX's [persistent compilation cache](https://docs.jax.dev/en/latest/persistent_compilation_cache.html):
-
-```bash
-export JAX_COMPILATION_CACHE_DIR="$HOME/.cache/jax"
-```
-
-Or, in Python, `jax.config.update("jax_compilation_cache_dir", ...)` before the first call. Later processes then load the compiled kNN from disk; tracing still runs each time. At n = 100,000, the first call in a new process fell from 6.8 s to 2.8 s.
-
-Against [jaxkd](https://github.com/dodgebc/jaxkd) at n = 100,000 (all-points, k = 10, CPU):
-
-| data | jaxknn | jaxkd | SciPy |
-|---|---|---|---|
-| stream | 307 ms | 815 ms | 73 ms |
-| blob | 355 ms | 1,161 ms | 80 ms |
-| stream + interlopers | 513 ms | ~140 s | 78 ms |
+On a CPU, eagerly, SciPy's `cKDTree` is 3–8× faster, and the first call under `jit` compiles, which takes seconds. Against [jaxkd](https://github.com/dodgebc/jaxkd), jaxknn is 1.9–4.8× faster from 3,000 points up, and stays fast on data with scattered outliers. See [how jaxknn compares](https://nstarkman.space/jaxknn/comparison/) for the benchmarks and trade-offs.
 
 ## Origin
 
