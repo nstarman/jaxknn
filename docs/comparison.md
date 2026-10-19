@@ -69,7 +69,7 @@ The setup is the same as on the L40S, on one NVIDIA H200, a datacenter GPU; agai
 
 - **jaxknn barely changes between the two GPUs:** 53 ms against 55 ms at 1M points. jaxkd gets twice as fast on the H200, and brute force about 16% faster. That suggests jaxknn's GPU time is bound by its sequential query chunks and kernel launches rather than by compute; see [on GPU](#on-gpu).
 - **jaxknn is still the fastest at scale:** 4–14× faster than jaxkd on clean data at every size, and 5–8× faster than SciPy at 1M points.
-- **The first call takes ~7–14 s,** as on the L40S.
+- **The first call takes about as long as on the L40S:** ~7–14 s on the H200, against ~8–14 s on the L40S.
 
 jaxkd also has a CUDA path (`cuda=True`, from the `jaxkd-cuda` extension), which isn't in either run: when the benchmark ran, `jaxkd-cuda` 0.0.0 on PyPI was a source package that failed to build ("project.version is not specified", see the [job log](https://github.com/nstarman/jaxknn/blob/0cad0d17e3d09db28e276100c10f61a08875cad3/gpu/log_NVIDIA_L40S_26373681.txt)).
 
