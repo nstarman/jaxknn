@@ -461,7 +461,7 @@ class TestExclude:
 
         # The build's level loop is a scan too, with no xs; the query map has xs.
         scans = [e for e in jaxpr.eqns if e.primitive.name == "scan"]
-        (n,) = [n_xs(e) for e in scans if n_xs(e) > 0]
+        (n,) = [n for n in map(n_xs, scans) if n > 0]
         assert n == 3
 
     def _check(self, n, d, kind, k, frontier=16, seed=0, leaf_size=16, *, grid=False):

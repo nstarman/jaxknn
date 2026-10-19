@@ -105,10 +105,9 @@ def build_tree(points: Float[Array, "n d"], /, *, leaf_size: int = 16) -> Tree:
         before = jnp.cumsum(s, 1) - s  # exclusive count of left rows
         n_left = before - before[:, node * m]  # ... within the node
         tgt = node * m + jnp.where(s, n_left, h + loc - n_left)
-        rows = jnp.broadcast_to(dims[:, None], (d, n_pad))
         ords = (
             jnp.zeros((d, n_pad), jnp.int32)
-            .at[rows, tgt]
+            .at[dims[:, None], tgt]
             .set(ords, unique_indices=True)
         )
         onehot = jax.nn.one_hot(dim, d, dtype=bool)
