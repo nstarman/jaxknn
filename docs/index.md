@@ -33,5 +33,6 @@ Both return `(indices, distances)`:
 - **[Use it under `jit`, `vmap` and `grad`](how-to/use-under-jit-vmap-grad.md):** the reason jaxknn exists.
 - **[Find the nearest point with another label](how-to/find-the-nearest-point-with-another-label.md):** for example, bridging the components of a graph.
 - **[Tune it](how-to/tune-for-large-k-or-high-dimension.md)** for large `k` or high dimension.
+- **[How jaxknn compares](comparison.md)** with jaxkd and SciPy: what it does differently, CPU benchmarks, and the trade-offs.
 - **[How it works](how-it-works.md)** and **[when to use SciPy instead](when-to-use-scipy-instead.md)**.
 - **Reference:** [`jaxknn`](api/jaxknn.md) (the safe entry points) and [`jaxknn.tree`](api/tree.md) (the raw tree).

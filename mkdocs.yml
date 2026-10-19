@@ -75,6 +75,7 @@ nav:
         - 'how-to/find-the-nearest-point-with-another-label.md'
         - 'how-to/tune-for-large-k-or-high-dimension.md'
     - Explanation:
+        - 'comparison.md'
         - 'how-it-works.md'
         - 'when-to-use-scipy-instead.md'
     - Reference:
