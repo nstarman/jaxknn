@@ -54,7 +54,7 @@ On a GPU the picture changes:
 | Gaussian blob, n = 1M | 56 ms | 15 s | 955 ms | 474 ms |
 | stream + interlopers, n = 1M | 83 ms | 16 s | 175 s | 442 ms |
 
-jaxkd also has a CUDA path (`cuda=True`, from the `jaxkd-cuda` extension), which isn't in this run: the published `jaxkd-cuda` 0.0.0 source package doesn't build.
+jaxkd also has a CUDA path (`cuda=True`, from the `jaxkd-cuda` extension), which isn't in this run: when the benchmark ran, `jaxkd-cuda` 0.0.0 on PyPI was a source package that failed to build ("project.version is not specified", see the [job log](https://github.com/nstarman/jaxknn/blob/0cad0d17e3d09db28e276100c10f61a08875cad3/gpu/log_NVIDIA_L40S_26373681.txt)).
 
 ## Trade-offs
 
