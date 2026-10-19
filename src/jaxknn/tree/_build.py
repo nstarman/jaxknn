@@ -44,73 +44,109 @@ class Tree(eqx.Module):
 
 
 def build_tree(points: Float[Array, "n d"], /, *, leaf_size: int = 16) -> Tree:
-    """Build a tree over ``points`` (``n >= 0`` rows, any dimension ``d >= 1``)."""
+    """Build a tree over ``points`` (``n >= 0`` rows, any dimension ``d >= 1``).
+
+    The levels run in a ``lax.fori_loop`` over flat ``(n_pad,)`` arrays, so the
+    compiled program does not grow with the depth: node ``i`` of the current
+    level is the segment ``[i*m, (i+1)*m)``, and per-node results go to
+    heap-ordered arrays (level ``l`` at rows ``2**l - 1 ...``), sliced back into
+    per-level tuples at the end. Node-wise work runs on ``2**(depth-1)`` slots
+    every level, masked past the level's ``2**l`` nodes.
+    """
     n, d = points.shape
     lay = layout(n, leaf_size)
-    n_pad, inf = lay.n_pad, jnp.inf
-    pp = jnp.concat([points, jnp.full((n_pad - n, d), inf, points.dtype)])
-    ords = [jnp.argsort(pp[:, j], stable=True).astype(jnp.int32) for j in range(d)]
-    lo = jnp.full((1, d), -inf, points.dtype)
-    hi = jnp.full((1, d), inf, points.dtype)
-    cell_lo, cell_hi, split_dim, split_val = [lo], [hi], [], []
+    n_pad, depth, inf = lay.n_pad, lay.depth, jnp.inf
+    dt = points.dtype
+    pp = jnp.concat([points, jnp.full((n_pad - n, d), inf, dt)])
+    ords = jnp.stack(
+        [jnp.argsort(pp[:, j], stable=True).astype(jnp.int32) for j in range(d)]
+    )
+    n_nodes = 2 ** (depth + 1) - 1  # heap rows, levels 0..depth
+    slots = max(1, 2 ** (depth - 1))  # node slots per level (the widest level)
+    # Static valid counts per node and per left child, heap-ordered (levels
+    # 0..depth-1), padded so a dynamic slice of ``slots`` rows stays in bounds.
+    v_heap = np.zeros(n_nodes + slots, np.int32)
+    vl_heap = np.zeros(n_nodes + slots, np.int32)
+    for lvl in range(depth):
+        nn = 2**lvl
+        v_heap[nn - 1 : 2 * nn - 1] = lay.leaf_valid.reshape(nn, -1).sum(1)
+        vl_heap[nn - 1 : 2 * nn - 1] = lay.leaf_valid.reshape(2 * nn, -1).sum(1)[0::2]
+    v_heap, vl_heap = jnp.asarray(v_heap), jnp.asarray(vl_heap)
+    lo_heap = jnp.full((n_nodes + 2 * slots, d), -inf, dt)
+    hi_heap = jnp.full((n_nodes + 2 * slots, d), inf, dt)
+    dim_heap = jnp.zeros(n_nodes + slots, jnp.int32)
+    val_heap = jnp.zeros(n_nodes + slots, dt)
+    pos = jnp.arange(n_pad, dtype=jnp.int32)
+    slot = jnp.arange(slots, dtype=jnp.int32)
     dims = jnp.arange(d)
-    for lvl in range(lay.depth):
-        nn, m = 2**lvl, n_pad >> lvl
+
+    def level(lvl: Array, state: tuple) -> tuple:
+        ords, lo_heap, hi_heap, dim_heap, val_heap = state
+        nn = jnp.left_shift(1, lvl)
+        m = jnp.right_shift(n_pad, lvl)
         h = m // 2
-        v = lay.leaf_valid.reshape(nn, -1).sum(1)  # static valid per node
-        vl = lay.leaf_valid.reshape(2 * nn, -1).sum(1)[0::2]  # static, left child
-        vj = jnp.asarray(v, jnp.int32)
-        o = jnp.stack(ords).reshape(d, nn, m)  # per dim, node-grouped, sorted
-        first = jnp.take_along_axis(pp[o[:, :, 0]], dims[:, None, None], 2)[..., 0]
-        last_id = jnp.take_along_axis(
-            o, jnp.maximum(vj - 1, 0)[None, :, None].repeat(d, 0), 2
-        )[..., 0]
-        last = jnp.take_along_axis(pp[last_id], dims[:, None, None], 2)[..., 0]
-        dim = jnp.argmax(jnp.where(vj[None] > 0, last - first, -inf), 0)  # (nn,)
-        os_ = jnp.take_along_axis(o, dim[None, :, None], 0)[0]  # order on split dim
-        i = jnp.arange(m)[None]  # traced iota: a numpy mask would fold to a literal
-        vlj = jnp.asarray(vl, jnp.int32)[:, None]
-        left = (i < vlj) | ((i >= vj[:, None]) & (i < vj[:, None] + (h - vlj)))
-        side = jnp.zeros(n_pad, bool).at[os_.reshape(-1)].set(left.reshape(-1))
-        right_first = jnp.take_along_axis(os_, jnp.asarray(vl, jnp.int32)[:, None], 1)[
-            :, 0
-        ]
-        split = jnp.take_along_axis(pp[right_first], dim[:, None], 1)[:, 0]
-        base = (np.arange(nn) * m)[:, None]
-        new = []
-        for j in range(d):
-            oj = o[j]
-            s = side[oj]
-            tgt = base + jnp.where(s, jnp.cumsum(s, 1) - 1, h + jnp.cumsum(~s, 1) - 1)
-            new.append(
-                jnp.zeros(n_pad, jnp.int32)
-                .at[tgt.reshape(-1)]
-                .set(oj.reshape(-1), unique_indices=True)
-            )
-        ords = new
+        off = nn - 1  # this level's first heap row
+        live = slot < nn
+        v = jax.lax.dynamic_slice(v_heap, (off,), (slots,))
+        vl = jax.lax.dynamic_slice(vl_heap, (off,), (slots,))
+        start = jnp.where(live, slot * m, 0)
+        first = pp[ords[:, start], dims[:, None]]  # (d, slots)
+        last = pp[ords[:, start + jnp.maximum(v - 1, 0)], dims[:, None]]
+        dim = jnp.argmax(jnp.where((v > 0)[None], last - first, -inf), 0)
+        node = pos // m
+        loc = pos - node * m
+        dim_p, v_p, vl_p = dim[node], v[node], vl[node]
+        os_ = ords[dim_p, pos]  # each node's order on its split dimension
+        left = (loc < vl_p) | ((loc >= v_p) & (loc < v_p + (h - vl_p)))
+        side = jnp.zeros(n_pad, bool).at[os_].set(left)
+        right_first = ords[dim, start + jnp.where(live, vl, 0)]
+        split = pp[right_first, dim]
+        s = side[ords]  # (d, n_pad)
+        before = jnp.cumsum(s, 1) - s  # exclusive count of left rows
+        n_left = before - before[:, node * m]  # ... within the node
+        tgt = node * m + jnp.where(s, n_left, h + loc - n_left)
+        ords = (
+            jnp.zeros((d, n_pad), jnp.int32)
+            .at[dims[:, None], tgt]
+            .set(ords, unique_indices=True)
+        )
         onehot = jax.nn.one_hot(dim, d, dtype=bool)
-        lo = jnp.stack([lo, jnp.where(onehot, split[:, None], lo)], 1).reshape(
-            2 * nn, d
+        lo = jax.lax.dynamic_slice(lo_heap, (off, 0), (slots, d))
+        hi = jax.lax.dynamic_slice(hi_heap, (off, 0), (slots, d))
+        kids_lo = jnp.stack([lo, jnp.where(onehot, split[:, None], lo)], 1)
+        kids_hi = jnp.stack([jnp.where(onehot, split[:, None], hi), hi], 1)
+        # Rows past this level's nodes land in later levels' rows, which those
+        # levels overwrite (and the last level's fit exactly).
+        kid0 = 2 * nn - 1
+        lo_heap = jax.lax.dynamic_update_slice(
+            lo_heap, kids_lo.reshape(2 * slots, d), (kid0, 0)
         )
-        hi = jnp.stack([jnp.where(onehot, split[:, None], hi), hi], 1).reshape(
-            2 * nn, d
+        hi_heap = jax.lax.dynamic_update_slice(
+            hi_heap, kids_hi.reshape(2 * slots, d), (kid0, 0)
         )
-        cell_lo.append(lo)
-        cell_hi.append(hi)
-        split_dim.append(dim.astype(jnp.int32))
-        split_val.append(split)
+        dim_heap = jax.lax.dynamic_update_slice(dim_heap, dim.astype(jnp.int32), (off,))
+        val_heap = jax.lax.dynamic_update_slice(val_heap, split, (off,))
+        return ords, lo_heap, hi_heap, dim_heap, val_heap
+
+    ords, lo_heap, hi_heap, dim_heap, val_heap = jax.lax.fori_loop(
+        0, depth, level, (ords, lo_heap, hi_heap, dim_heap, val_heap)
+    )
+
+    def per_level(heap: Array, levels: int) -> tuple[Array, ...]:
+        return tuple(heap[2**lvl - 1 : 2 ** (lvl + 1) - 1] for lvl in range(levels))
+
     o = ords[0]
     real = o < n
     return Tree(
-        points=jnp.where(real[:, None], pp[o], 0.0).astype(points.dtype),
+        points=jnp.where(real[:, None], pp[o], 0.0).astype(dt),
         perm=jnp.where(real, o, n).astype(jnp.int32),
         valid=real,
-        cell_lo=tuple(cell_lo),
-        cell_hi=tuple(cell_hi),
-        split_dim=tuple(split_dim),
-        split_val=tuple(split_val),
+        cell_lo=per_level(lo_heap, depth + 1),
+        cell_hi=per_level(hi_heap, depth + 1),
+        split_dim=per_level(dim_heap, depth),
+        split_val=per_level(val_heap, depth),
         n=n,
-        depth=lay.depth,
+        depth=depth,
         leaf_size=lay.leaf_size,
         n_pad=n_pad,
     )

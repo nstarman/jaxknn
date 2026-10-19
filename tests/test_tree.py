@@ -4,6 +4,7 @@ import functools
 import importlib
 
 import jax
+import jax.extend.core
 import jax.numpy as jnp
 import numpy as np
 import pytest
@@ -451,14 +452,17 @@ class TestExclude:
         """Unused ``exclude`` adds nothing: the query map maps (x, self, leaf) only."""
         p = jnp.zeros((40, 2), jnp.float32)
         jaxpr = jax.make_jaxpr(lambda p: kd.all_knn(p, 4))(p).jaxpr
-        (scan,) = [e for e in jaxpr.eqns if e.primitive.name == "scan"]
-        if "num_consts" in scan.params:  # jax < 0.11
-            n_xs = (
-                len(scan.invars) - scan.params["num_consts"] - scan.params["num_carry"]
-            )
-        else:  # jax >= 0.11: ft_in unpacks to (consts, carry, xs)
-            n_xs = len(scan.params["ft_in"].unpack()[2])
-        assert n_xs == 3
+
+        def n_xs(scan: jax.extend.core.JaxprEqn) -> int:
+            if "num_consts" in scan.params:  # jax < 0.11
+                p = scan.params
+                return len(scan.invars) - p["num_consts"] - p["num_carry"]
+            return len(scan.params["ft_in"].unpack()[2])  # jax >= 0.11
+
+        # The build's level loop is a scan too, with no xs; the query map has xs.
+        scans = [e for e in jaxpr.eqns if e.primitive.name == "scan"]
+        (n,) = [n for n in map(n_xs, scans) if n > 0]
+        assert n == 3
 
     def _check(self, n, d, kind, k, frontier=16, seed=0, leaf_size=16, *, grid=False):
         rng = np.random.default_rng(seed)
