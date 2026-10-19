@@ -49,6 +49,14 @@ On a CPU, eagerly, SciPy's `cKDTree` is faster, because it queries with every co
 | 100,000 | 13.2 s | 1,261 ms | 148 ms | 8.5× |
 | 1,000,000 | 26.8 s | 11,719 ms | 1,990 ms | 5.9× |
 
+The first call compiles, which takes seconds per input shape and `k`. To pay that once per machine rather than once per process, turn on JAX's [persistent compilation cache](https://docs.jax.dev/en/latest/persistent_compilation_cache.html):
+
+```bash
+export JAX_COMPILATION_CACHE_DIR="$HOME/.cache/jax"
+```
+
+Or, in Python, `jax.config.update("jax_compilation_cache_dir", ...)` before the first call. Later processes then load the compiled kNN from disk; tracing still runs each time. At n = 100,000, the first call in a new process fell from 6.8 s to 2.8 s.
+
 Against [jaxkd](https://github.com/dodgebc/jaxkd) at n = 100,000 (all-points, k = 10, CPU):
 
 | data | jaxknn | jaxkd | SciPy |

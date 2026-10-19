@@ -57,33 +57,9 @@ def kth_smallest(d2: Float[Array, "Q W"], /, k: int) -> Float[Array, " Q"]:
     return _network(_pad_width(d2, k).T, k)[-1]
 
 
-# Above this k the final sort uses lax.sort: the unrolled transposition sort is
-# ~2.5x faster at k=10 but its trace grows as k**2 (k=50 compiled for minutes).
-_UNROLL_MAX_K = 16
-# At k = 7, 8 XLA CPU fuses the whole unrolled sort into the output
-# concatenate and recomputes it per column (~15-30x slower than k = 9);
-# lax.sort is ~7x faster there. k <= 6 and 9..16 are not affected.
-_FUSION_TRAP_K = (7, 8)
-
-
-def _sort_pairs(v: Array, ix: Array, k: int, /) -> tuple[Array, Array]:
+def _sort_pairs(v: Array, ix: Array, /) -> tuple[Array, Array]:
     """Sort each row by (value, id)."""
-    if k > _UNROLL_MAX_K or k in _FUSION_TRAP_K:
-        return jax.lax.sort((v, ix), dimension=1, num_keys=2)
-    v = [v[:, i] for i in range(k)]
-    ix = [ix[:, i] for i in range(k)]
-    for r in range(k):  # odd-even transposition sort
-        for i in range(r % 2, k - 1, 2):
-            swap = (v[i + 1] < v[i]) | ((v[i + 1] == v[i]) & (ix[i + 1] < ix[i]))
-            v[i], v[i + 1] = (
-                jnp.where(swap, v[i + 1], v[i]),
-                jnp.where(swap, v[i], v[i + 1]),
-            )
-            ix[i], ix[i + 1] = (
-                jnp.where(swap, ix[i + 1], ix[i]),
-                jnp.where(swap, ix[i], ix[i + 1]),
-            )
-    return jnp.stack(v, 1), jnp.stack(ix, 1)
+    return jax.lax.sort((v, ix), dimension=1, num_keys=2)
 
 
 def ksmallest(
@@ -126,7 +102,7 @@ def ksmallest(
         col = jax.lax.cond(cut, lowest_tied_ids, lambda: c1)
         vals = jnp.where(jnp.arange(k)[None] < n_lt, v1, tau)
         out = jnp.take_along_axis(ids, col, 1)
-        return _sort_pairs(vals, out, k)
+        return _sort_pairs(vals, out)
     # (W, Q) layout for the networks; pass ``ids`` as ``x.T`` to skip a copy.
     at = a.T
     tau = _network(at, k)[-1]
@@ -137,4 +113,4 @@ def ksmallest(
     col = jnp.where(kk < w, kk, 0)
     vals = jnp.where(kk < w, jnp.take_along_axis(a, col, 1), tau[:, None])
     out = jnp.where(kk < w, jnp.take_along_axis(ids, col, 1), kk - w)
-    return _sort_pairs(vals, out, k)
+    return _sort_pairs(vals, out)
