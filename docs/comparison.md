@@ -105,4 +105,4 @@ When you don't need tracing, SciPy's `cKDTree` is 3–8× faster than jaxknn on 
 
 jaxknn was developed and tuned on CPU/XLA: its query-chunk and overflow-tier sizes, and its selection networks, were chosen for CPU. It's already the fastest of the four on both GPUs measured, but GPU-specific tuning hasn't been tried, and the H200 suggests there's room. The H200 has over 5× the L40S's memory bandwidth, and it barely speeds jaxknn up, while it doubles jaxkd's speed. That points at the query's sequential chunks and many small kernel launches, not at arithmetic or memory traffic. Open questions:
 - **jaxkd's CUDA path** hasn't been measured against it.
-- **float64** runs at a small fraction of float32's speed on workstation GPUs like the L40S (on datacenter GPUs like the H200, at half).
+- **float64** throughput is a small fraction of float32's on workstation GPUs like the L40S, and about half of float32's on datacenter GPUs like the H200.
