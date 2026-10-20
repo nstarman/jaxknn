@@ -60,7 +60,7 @@ On a GPU the picture changes:
 
 ![All-points kNN time against n on an NVIDIA H200 for jaxknn, jaxknn's brute force, jaxkd and SciPy on three datasets, and first-call time on the stream](_static/knn_scaling_gpu_h200.png)
 
-The setup is the same as on the L40S, on one NVIDIA H200, a datacenter GPU; again every jaxknn result matched SciPy's. [Raw numbers](https://github.com/nstarman/jaxknn/blob/08bfe469bc4a8440fa534d15abbe5a199cb9166a/gpu/results_NVIDIA_H200_26373138.json) and [job log](https://github.com/nstarman/jaxknn/blob/08bfe469bc4a8440fa534d15abbe5a199cb9166a/gpu/log_NVIDIA_H200_26373138.txt).
+This run used one NVIDIA H200, a datacenter GPU, with the same setup as the L40S run. Again, every jaxknn result matched SciPy's. [Raw numbers](https://github.com/nstarman/jaxknn/blob/08bfe469bc4a8440fa534d15abbe5a199cb9166a/gpu/results_NVIDIA_H200_26373138.json) and [job log](https://github.com/nstarman/jaxknn/blob/08bfe469bc4a8440fa534d15abbe5a199cb9166a/gpu/log_NVIDIA_H200_26373138.txt).
 
 | n = 1M, steady state | jaxknn | jaxknn brute force | jaxkd (pure JAX) | SciPy (16 cores) |
 |---|---|---|---|---|
