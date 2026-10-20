@@ -36,6 +36,8 @@ In all three timing panels, SciPy is below both JAX libraries.
 
 ## Benchmarks on GPU
 
+### NVIDIA L40S
+
 ![All-points kNN time against n on an NVIDIA L40S for jaxknn, jaxknn's brute force, jaxkd and SciPy on three datasets, and first-call time on the stream](_static/knn_scaling_gpu_l40s.png)
 
 The same data, sizes and timing as the CPU benchmark, on one NVIDIA L40S (MIT Engaging): jaxknn `main` at f093366, jax 0.8.2 with CUDA 12, jaxkd 0.1.2 (pure JAX). It adds [`jaxknn.brute_knn`][], with SciPy's `cKDTree` on the node's 16 CPU cores for reference. Every jaxknn result matched SciPy's distances. [Script](https://github.com/nstarman/jaxknn/blob/0cad0d17e3d09db28e276100c10f61a08875cad3/gpu/bench_gpu.py), [Slurm job](https://github.com/nstarman/jaxknn/blob/0cad0d17e3d09db28e276100c10f61a08875cad3/gpu/job.sh), [plotting script](https://github.com/nstarman/jaxknn/blob/0cad0d17e3d09db28e276100c10f61a08875cad3/gpu/plot_gpu.py) and [raw numbers](https://github.com/nstarman/jaxknn/blob/0cad0d17e3d09db28e276100c10f61a08875cad3/gpu/results_NVIDIA_L40S_26373681.json).
@@ -54,7 +56,22 @@ On a GPU the picture changes:
 | Gaussian blob, n = 1M | 56 ms | 15 s | 955 ms | 474 ms |
 | stream + interlopers, n = 1M | 83 ms | 16 s | 175 s | 442 ms |
 
-jaxkd also has a CUDA path (`cuda=True`, from the `jaxkd-cuda` extension), which isn't in this run: when the benchmark ran, `jaxkd-cuda` 0.0.0 on PyPI was a source package that failed to build ("project.version is not specified", see the [job log](https://github.com/nstarman/jaxknn/blob/0cad0d17e3d09db28e276100c10f61a08875cad3/gpu/log_NVIDIA_L40S_26373681.txt)).
+### NVIDIA H200
+
+![All-points kNN time against n on an NVIDIA H200 for jaxknn, jaxknn's brute force, jaxkd and SciPy on three datasets, and first-call time on the stream](_static/knn_scaling_gpu_h200.png)
+
+This run used one NVIDIA H200, a datacenter GPU, with the same setup as the L40S run. Again, every jaxknn result matched SciPy's. [Raw numbers](https://github.com/nstarman/jaxknn/blob/08bfe469bc4a8440fa534d15abbe5a199cb9166a/gpu/results_NVIDIA_H200_26373138.json) and [job log](https://github.com/nstarman/jaxknn/blob/08bfe469bc4a8440fa534d15abbe5a199cb9166a/gpu/log_NVIDIA_H200_26373138.txt).
+
+| n = 1M, steady state | jaxknn | jaxknn brute force | jaxkd (pure JAX) | SciPy (16 cores) |
+|---|---|---|---|---|
+| stream | 53 ms (L40S: 55 ms) | 13 s (L40S: 15 s) | 454 ms (L40S: 944 ms) | 401 ms (L40S: 455 ms) |
+| stream + interlopers | 82 ms (L40S: 83 ms) | 13 s (L40S: 16 s) | 77 s (L40S: 175 s) | 415 ms (L40S: 442 ms) |
+
+- **jaxknn barely changes between the two GPUs:** 53 ms against 55 ms at 1M points. jaxkd gets twice as fast on the H200, and brute force about 16% faster. That suggests jaxknn's GPU time is bound by its sequential query chunks and kernel launches rather than by compute; see [on GPU](#on-gpu).
+- **jaxknn is still the fastest at scale:** 4–14× faster than jaxkd on clean data at every size, and 5–8× faster than SciPy at 1M points.
+- **The first call takes about as long as on the L40S:** ~7–14 s on the H200, against ~8–14 s on the L40S.
+
+jaxkd also has a CUDA path (`cuda=True`, from the `jaxkd-cuda` extension), which isn't in either run: when the benchmark ran, `jaxkd-cuda` 0.0.0 on PyPI was a source package that failed to build ("project.version is not specified", see the [job log](https://github.com/nstarman/jaxknn/blob/0cad0d17e3d09db28e276100c10f61a08875cad3/gpu/log_NVIDIA_L40S_26373681.txt)).
 
 ## Trade-offs
 
@@ -86,7 +103,6 @@ When you don't need tracing, SciPy's `cKDTree` is 3–8× faster than jaxknn on 
 
 ### On GPU
 
-jaxknn was developed and tuned on CPU/XLA: its query-chunk and overflow-tier sizes, and its selection networks, were chosen for CPU. It's already the fastest of the four on the L40S; GPU-specific tuning hasn't been tried. Open questions:
+jaxknn was developed and tuned on CPU/XLA: its query-chunk and overflow-tier sizes, and its selection networks, were chosen for CPU. It's already the fastest of the four on both GPUs measured, but GPU-specific tuning hasn't been tried, and the H200 suggests there's room. The H200 has over 5× the L40S's memory bandwidth, and it barely speeds jaxknn up, while it doubles jaxkd's speed. That points at the query's sequential chunks and many small kernel launches, not at arithmetic or memory traffic. Open questions:
 - **jaxkd's CUDA path** hasn't been measured against it.
-- **float64** runs at a small fraction of float32's speed on workstation GPUs like the L40S.
-- **An H200 run** (a datacenter GPU) is still to come.
+- **float64** throughput is a small fraction of float32's on workstation GPUs like the L40S, and about half of float32's on datacenter GPUs like the H200.
