@@ -64,8 +64,8 @@ The setup is the same as on the L40S, on one NVIDIA H200, a datacenter GPU; agai
 
 | n = 1M, steady state | jaxknn | jaxknn brute force | jaxkd (pure JAX) | SciPy (16 cores) |
 |---|---|---|---|---|
-| stream | 53 ms (L40S: 55) | 13 s (15) | 454 ms (944) | 401 ms (455) |
-| stream + interlopers | 82 ms (83) | 13 s (16) | 77 s (175) | 415 ms (442) |
+| stream | 53 ms (L40S: 55 ms) | 13 s (L40S: 15 s) | 454 ms (L40S: 944 ms) | 401 ms (L40S: 455 ms) |
+| stream + interlopers | 82 ms (L40S: 83 ms) | 13 s (L40S: 16 s) | 77 s (L40S: 175 s) | 415 ms (L40S: 442 ms) |
 
 - **jaxknn barely changes between the two GPUs:** 53 ms against 55 ms at 1M points. jaxkd gets twice as fast on the H200, and brute force about 16% faster. That suggests jaxknn's GPU time is bound by its sequential query chunks and kernel launches rather than by compute; see [on GPU](#on-gpu).
 - **jaxknn is still the fastest at scale:** 4–14× faster than jaxkd on clean data at every size, and 5–8× faster than SciPy at 1M points.
