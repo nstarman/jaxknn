@@ -46,7 +46,7 @@ On a CPU, eagerly, SciPy's `cKDTree` is 3–8× faster, and the first call under
 
 All-points kNN (k = 10, 3-D float32) under `jit`, steady state, against [jaxkd](https://github.com/dodgebc/jaxkd) and SciPy's `cKDTree`. The rightmost panel is the first call, which includes compilation. Details are in [how jaxknn compares](https://nstarkman.space/jaxknn/comparison/).
 
-**On a GPU (NVIDIA L40S),** jaxknn is the fastest. At 1M points it takes 55 ms, against 944 ms for jaxkd and 455 ms for SciPy on 16 CPU cores:
+**On a GPU,** jaxknn is the fastest. On an NVIDIA L40S (plotted below), it takes 55 ms at 1M points, against 944 ms for jaxkd and 455 ms for SciPy on 16 CPU cores. On an NVIDIA H200 it takes about the same, 53 ms; see [the docs](https://nstarkman.space/jaxknn/comparison/#nvidia-h200).
 
 ![All-points kNN on an NVIDIA L40S: jaxknn, jaxknn brute force, jaxkd and SciPy](https://raw.githubusercontent.com/nstarman/jaxknn/main/docs/_static/knn_scaling_gpu_l40s.png)
 
