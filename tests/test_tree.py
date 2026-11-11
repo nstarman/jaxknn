@@ -591,7 +591,8 @@ lab = jnp.asarray(rng.integers(0, 5, n), jnp.int32)
 q = p[::7] + 0.01
 tree = kd.build_tree(p)
 mesh = jax.sharding.Mesh(np.asarray(jax.devices()), ("q",))
-rep = jax.device_put(tree, jax.sharding.NamedSharding(mesh, jax.sharding.PartitionSpec()))
+replicated = jax.sharding.NamedSharding(mesh, jax.sharding.PartitionSpec())
+rep = jax.device_put(tree, replicated)
 out = {
     "knn_replicated_tree": jax.jit(lambda t, q: kd.knn(t, q, 10))(rep, q),
     "all": kd.all_knn(p, 10),
