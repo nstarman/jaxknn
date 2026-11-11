@@ -27,6 +27,8 @@ from collections.abc import Callable
 
 import jax
 import jax.numpy as jnp
+import numpy as np
+from jax.sharding import PartitionSpec as P
 from jaxtyping import Array, ArrayLike, Float, Int
 
 from ._build import Tree, build_tree
@@ -40,6 +42,31 @@ TIER_CHUNK = (1024, 256)
 BRUTE_CHUNK = 128
 QUERY_CHUNK = 16384
 _ONEHOT_MAX_CAP = 32  # _descend compaction: one-hot sum up to here, scatter above
+
+
+def _host_devices() -> list:
+    """Return the devices to shard the query pass over.
+
+    All the devices when the default backend is the CPU, so more than one only
+    when the user enabled several host devices
+    (``XLA_FLAGS=--xla_force_host_platform_device_count=N``, set before JAX is
+    imported); just the first on any other backend.
+    """
+    devs = jax.devices()
+    return devs if devs[0].platform == "cpu" else devs[:1]
+
+
+def _map_chunks(f: Callable, xs: tuple[Array, ...], devs: list, /) -> tuple:
+    """``lax.map(f, xs)``, with the chunks split evenly across ``devs``."""
+    if len(devs) == 1:
+        return jax.lax.map(f, xs)
+    return jax.shard_map(  # each device maps over its own run of chunks
+        lambda *xs: jax.lax.map(f, xs),
+        mesh=jax.sharding.Mesh(np.asarray(devs), ("q",)),
+        in_specs=P("q"),
+        out_specs=P("q"),
+        check_vma=False,  # carries built inside the chunk start unvarying
+    )(*xs)
 
 
 def _box_d2(q: Array, lo: Array, hi: Array, /) -> Array:
@@ -294,8 +321,10 @@ def _query(
         return None if exclude is None else (rl, hl, ql)
 
     nq, d = xq.shape
-    qc = min(QUERY_CHUNK, nq)
-    n_chunks = -(-nq // qc)
+    devs = _host_devices()
+    ndev = len(devs)
+    qc = min(QUERY_CHUNK, -(-nq // ndev))  # >= 1 chunk per device
+    n_chunks = -(-nq // (qc * ndev)) * ndev
     padn = n_chunks * qc - nq
 
     def pad(a: Array, fill: float | int) -> Array:
@@ -318,7 +347,7 @@ def _query(
         pad(qleaf, 0).reshape(n_chunks, qc),
         *(pad(a, 0).reshape(n_chunks, qc) for a in qlab),
     )
-    dd, ii, over, r2 = jax.lax.map(chunk, inputs)
+    dd, ii, over, r2 = _map_chunks(chunk, inputs, devs)
     dd, ii = dd.reshape(-1, k)[:nq], ii.reshape(-1, k)[:nq]
     over, r2 = over.reshape(-1)[:nq] & qvalid, r2.reshape(-1)[:nq]
     r2 = jnp.minimum(r2, dd[:, -1])  # even a truncated candidate set bounds the k-th

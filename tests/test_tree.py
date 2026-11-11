@@ -571,3 +571,64 @@ class TestExclude:
                     else (real[0] if np.all(real == real[0]) else 40)
                 )
                 assert got == want
+
+
+_SHARD_CASES = """
+import sys
+import jax, jax.numpy as jnp, numpy as np
+import jaxknn
+from jaxknn import tree as kd
+
+rng = np.random.default_rng(0)
+n = 3000
+t = np.linspace(0, 1, n)
+p = np.c_[10 * t, np.sin(3 * t), 0.3 * np.cos(2 * t)] + rng.normal(0, 0.02, (n, 3))
+i = rng.choice(n, n // 100, replace=False)
+p[i] = rng.uniform(p.min(0) - 3, p.max(0) + 3, (len(i), 3))  # tiers, brute force
+p = jnp.asarray(p, jnp.float32)
+grid = jnp.asarray(rng.integers(0, 4, size=(500, 3)), jnp.float32)  # ties
+lab = jnp.asarray(rng.integers(0, 5, n), jnp.int32)
+q = p[::7] + 0.01
+tree = kd.build_tree(p)
+out = {
+    "all": kd.all_knn(p, 10),
+    "all_jit": jax.jit(lambda p: kd.all_knn(p, 10))(p),
+    "frontier2": kd.all_knn(p, 10, frontier=2),
+    "grid": kd.all_knn(grid, 10),
+    "tiny": kd.all_knn(p[:3], 10),
+    "knn": kd.knn(tree, q, 10),
+    "exclude": jax.jit(lambda p, l: kd.knn(kd.build_tree(p), p, 3, exclude=(l, l)))(
+        p, lab
+    ),
+    "vmap": jax.vmap(lambda p: kd.all_knn(p, 5))(jnp.stack([p[:1000], p[1000:2000]])),
+    "api": jaxknn.knn(p, 10),
+    "grad": jax.grad(lambda p: jaxknn.knn(p, 4)[1].sum())(p),
+}
+np.savez(sys.argv[1], ndev=len(jax.devices()),
+         **{f"{k}_{j}": np.asarray(a) for k, v in out.items()
+            for j, a in enumerate(v if isinstance(v, tuple) else (v,))})
+"""
+
+
+def test_sharded_queries_match_one_device(tmp_path):
+    """Several host devices shard the query pass; every output is bit-identical."""
+    import os  # noqa: PLC0415
+    import subprocess  # noqa: PLC0415
+    import sys  # noqa: PLC0415
+
+    script = tmp_path / "cases.py"
+    script.write_text(_SHARD_CASES)
+    res = {}
+    for ndev in (1, 3):
+        env = dict(
+            os.environ,
+            JAX_PLATFORMS="cpu",
+            XLA_FLAGS=f"--xla_force_host_platform_device_count={ndev}",
+        )
+        out = tmp_path / f"out{ndev}.npz"
+        subprocess.run([sys.executable, script, out], env=env, check=True)  # noqa: S603
+        res[ndev] = np.load(out)
+    assert res[1]["ndev"] == 1
+    assert res[3]["ndev"] == 3
+    for key in set(res[1].files) - {"ndev"}:
+        np.testing.assert_array_equal(res[3][key], res[1][key], err_msg=key)
