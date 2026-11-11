@@ -56,19 +56,6 @@ def _host_devices() -> list:
     return devs if devs[0].platform == "cpu" else devs[:1]
 
 
-def _map_chunks(f: Callable, xs: tuple[Array, ...], devs: list, /) -> tuple:
-    """``lax.map(f, xs)``, with the chunks split evenly across ``devs``."""
-    if len(devs) == 1:
-        return jax.lax.map(f, xs)
-    return jax.shard_map(  # each device maps over its own run of chunks
-        lambda *xs: jax.lax.map(f, xs),
-        mesh=jax.sharding.Mesh(np.asarray(devs), ("q",)),
-        in_specs=P("q"),
-        out_specs=P("q"),
-        check_vma=False,  # carries built inside the chunk start unvarying
-    )(*xs)
-
-
 def _box_d2(q: Array, lo: Array, hi: Array, /) -> Array:
     gap = jnp.maximum(0.0, jnp.maximum(lo - q, q - hi))
     return jnp.sum(gap * gap, -1)
@@ -298,7 +285,7 @@ def _finish(
     return dd, ii, still, r2
 
 
-def _query(
+def _query_local(
     tree: Tree,
     xq: Array,
     qself: Array,
@@ -309,7 +296,7 @@ def _query(
     /,
     exclude: tuple[Array, tuple, Array] | None = None,
 ) -> tuple[Array, Array]:
-    """Exact kNN for queries ``xq`` -> ``(sq_dist (Q, k), original idx (Q, k))``.
+    """Exact kNN for queries ``xq`` on one device: see :func:`_query`.
 
     ``exclude = (row_labels, node_labels, query_labels)`` (see
     :func:`node_labels`) skips every point sharing the query's label.
@@ -321,10 +308,8 @@ def _query(
         return None if exclude is None else (rl, hl, ql)
 
     nq, d = xq.shape
-    devs = _host_devices()
-    ndev = len(devs)
-    qc = min(QUERY_CHUNK, -(-nq // ndev))  # >= 1 chunk per device
-    n_chunks = -(-nq // (qc * ndev)) * ndev
+    qc = min(QUERY_CHUNK, nq)
+    n_chunks = -(-nq // qc)
     padn = n_chunks * qc - nq
 
     def pad(a: Array, fill: float | int) -> Array:
@@ -347,7 +332,7 @@ def _query(
         pad(qleaf, 0).reshape(n_chunks, qc),
         *(pad(a, 0).reshape(n_chunks, qc) for a in qlab),
     )
-    dd, ii, over, r2 = _map_chunks(chunk, inputs, devs)
+    dd, ii, over, r2 = jax.lax.map(chunk, inputs)
     dd, ii = dd.reshape(-1, k)[:nq], ii.reshape(-1, k)[:nq]
     over, r2 = over.reshape(-1)[:nq] & qvalid, r2.reshape(-1)[:nq]
     r2 = jnp.minimum(r2, dd[:, -1])  # even a truncated candidate set bounds the k-th
@@ -389,6 +374,56 @@ def _query(
 
     dd, ii, _, _ = _finish(xq, qself, over, dd, ii, r2, BRUTE_CHUNK, brute, *qlab)
     return dd, ii
+
+
+def _query(
+    tree: Tree,
+    xq: Array,
+    qself: Array,
+    qvalid: Array,
+    qleaf: Array,
+    k: int,
+    frontier: int,
+    /,
+    exclude: tuple[Array, tuple, Array] | None = None,
+) -> tuple[Array, Array]:
+    """Exact kNN for queries ``xq`` -> ``(sq_dist (Q, k), original idx (Q, k))``.
+
+    ``exclude = (row_labels, node_labels, query_labels)`` (see
+    :func:`node_labels`) skips every point sharing the query's label. With
+    several host devices (:func:`_host_devices`), each device answers its own
+    contiguous slice of the queries, overflow tiers included; only the tree
+    and node labels are copied to every device.
+    """
+    devs = _host_devices()
+    ndev = len(devs)
+    if ndev == 1:
+        return _query_local(tree, xq, qself, qvalid, qleaf, k, frontier, exclude)
+    nq = xq.shape[0]
+    padn = -(-nq // ndev) * ndev - nq
+
+    def pad(a: Array, fill: float | int | bool) -> Array:  # noqa: FBT001
+        return jnp.concat([a, jnp.full((padn, *a.shape[1:]), fill, a.dtype)])
+
+    # Padding queries are invalid, so they never enter the overflow tiers.
+    per_q = [pad(xq, 0), pad(qself, -1), pad(qvalid, False), pad(qleaf, 0)]  # noqa: FBT003
+    shared = (tree,) if exclude is None else (tree, exclude[0], exclude[1])
+    if exclude is not None:
+        per_q.append(pad(exclude[2], 0))
+
+    def local(shared: tuple, *q: Array) -> tuple[Array, Array]:
+        ex = None if exclude is None else (shared[1], shared[2], q[4])
+        return _query_local(shared[0], *q[:4], k, frontier, ex)
+
+    sharded = jax.shard_map(
+        local,
+        mesh=jax.sharding.Mesh(np.asarray(devs), ("q",)),
+        in_specs=(P(), *(P("q") for _ in per_q)),
+        out_specs=P("q"),
+        check_vma=False,  # carries built inside the query start unvarying
+    )
+    dd, ii = jax.jit(sharded)(shared, *per_q)  # eager shard_map segfaults
+    return dd[:nq], ii[:nq]
 
 
 def locate_leaves(tree: Tree, queries: Float[Array, "m d"], /) -> Int[Array, " m"]:
