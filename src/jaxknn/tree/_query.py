@@ -415,9 +415,16 @@ def _query(
         ex = None if exclude is None else (shared[1], shared[2], q[4])
         return _query_local(shared[0], *q[:4], k, frontier, ex)
 
+    mesh = jax.sharding.Mesh(np.asarray(devs), ("q",))
+    # Pin the inputs as replicated: otherwise, inside an outer jit, the P("q")
+    # in_specs propagate back into whatever built them (the tree build in
+    # all_knn) and XLA splits that work across devices, 10-25x slower.
+    shared, per_q = jax.lax.with_sharding_constraint(
+        (shared, per_q), jax.sharding.NamedSharding(mesh, P())
+    )
     sharded = jax.shard_map(
         local,
-        mesh=jax.sharding.Mesh(np.asarray(devs), ("q",)),
+        mesh=mesh,
         in_specs=(P(), *(P("q") for _ in per_q)),
         out_specs=P("q"),
         check_vma=False,  # carries built inside the query start unvarying
