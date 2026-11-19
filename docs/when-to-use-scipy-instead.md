@@ -10,4 +10,5 @@ So:
 
 - **Inside `jit`, `vmap` or `grad`, or on an accelerator:** use jaxknn. SciPy can't run on traced values.
 - **Eager CPU code:** SciPy is faster and compiles nothing.
+- **CPU-only, but you need tracing:** [several host devices](how-to/use-several-cpu-cores.md) make jaxknn up to 2–3× faster. That is less than SciPy's 3–8× lead in the CPU benchmark.
 - **A GPU is available:** jaxknn is faster, even counting SciPy's CPU cores.
