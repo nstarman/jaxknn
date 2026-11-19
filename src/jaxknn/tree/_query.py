@@ -27,6 +27,8 @@ from collections.abc import Callable
 
 import jax
 import jax.numpy as jnp
+import numpy as np
+from jax.sharding import PartitionSpec as P
 from jaxtyping import Array, ArrayLike, Float, Int
 
 from ._build import Tree, build_tree
@@ -40,6 +42,18 @@ TIER_CHUNK = (1024, 256)
 BRUTE_CHUNK = 128
 QUERY_CHUNK = 16384
 _ONEHOT_MAX_CAP = 32  # _descend compaction: one-hot sum up to here, scatter above
+
+
+def _host_devices() -> list:
+    """Return the devices to shard the query pass over.
+
+    All the devices when the default backend is the CPU, so more than one only
+    when the user enabled several host devices
+    (``XLA_FLAGS=--xla_force_host_platform_device_count=N``, set before JAX is
+    imported); just the first on any other backend.
+    """
+    devs = jax.devices()
+    return devs if devs[0].platform == "cpu" else devs[:1]
 
 
 def _box_d2(q: Array, lo: Array, hi: Array, /) -> Array:
@@ -271,7 +285,7 @@ def _finish(
     return dd, ii, still, r2
 
 
-def _query(
+def _query_local(
     tree: Tree,
     xq: Array,
     qself: Array,
@@ -282,7 +296,7 @@ def _query(
     /,
     exclude: tuple[Array, tuple, Array] | None = None,
 ) -> tuple[Array, Array]:
-    """Exact kNN for queries ``xq`` -> ``(sq_dist (Q, k), original idx (Q, k))``.
+    """Exact kNN for queries ``xq`` on one device: see :func:`_query`.
 
     ``exclude = (row_labels, node_labels, query_labels)`` (see
     :func:`node_labels`) skips every point sharing the query's label.
@@ -360,6 +374,63 @@ def _query(
 
     dd, ii, _, _ = _finish(xq, qself, over, dd, ii, r2, BRUTE_CHUNK, brute, *qlab)
     return dd, ii
+
+
+def _query(
+    tree: Tree,
+    xq: Array,
+    qself: Array,
+    qvalid: Array,
+    qleaf: Array,
+    k: int,
+    frontier: int,
+    /,
+    exclude: tuple[Array, tuple, Array] | None = None,
+) -> tuple[Array, Array]:
+    """Exact kNN for queries ``xq`` -> ``(sq_dist (Q, k), original idx (Q, k))``.
+
+    ``exclude = (row_labels, node_labels, query_labels)`` (see
+    :func:`node_labels`) skips every point sharing the query's label. With
+    several host devices (:func:`_host_devices`), each device answers its own
+    contiguous slice of the queries, overflow tiers included; only the tree
+    and node labels are copied to every device.
+    """
+    devs = _host_devices()
+    ndev = len(devs)
+    if ndev == 1:
+        return _query_local(tree, xq, qself, qvalid, qleaf, k, frontier, exclude)
+    nq = xq.shape[0]
+    padn = -(-nq // ndev) * ndev - nq
+
+    def pad(a: Array, fill: float | int | bool) -> Array:  # noqa: FBT001
+        return jnp.concat([a, jnp.full((padn, *a.shape[1:]), fill, a.dtype)])
+
+    # Padding queries are invalid, so they never enter the overflow tiers.
+    per_q = [pad(xq, 0), pad(qself, -1), pad(qvalid, False), pad(qleaf, 0)]  # noqa: FBT003
+    shared = (tree,) if exclude is None else (tree, exclude[0], exclude[1])
+    if exclude is not None:
+        per_q.append(pad(exclude[2], 0))
+
+    def local(shared: tuple, *q: Array) -> tuple[Array, Array]:
+        ex = None if exclude is None else (shared[1], shared[2], q[4])
+        return _query_local(shared[0], *q[:4], k, frontier, ex)
+
+    mesh = jax.sharding.Mesh(np.asarray(devs), ("q",))
+    # Pin the inputs as replicated: otherwise, inside an outer jit, the P("q")
+    # in_specs propagate back into whatever built them (the tree build in
+    # all_knn) and XLA splits that work across devices, 10-25x slower.
+    shared, per_q = jax.lax.with_sharding_constraint(
+        (shared, per_q), jax.sharding.NamedSharding(mesh, P())
+    )
+    sharded = jax.shard_map(
+        local,
+        mesh=mesh,
+        in_specs=(P(), *(P("q") for _ in per_q)),
+        out_specs=P("q"),
+        check_vma=False,  # carries built inside the query start unvarying
+    )
+    dd, ii = jax.jit(sharded)(shared, *per_q)  # eager shard_map segfaults
+    return dd[:nq], ii[:nq]
 
 
 def locate_leaves(tree: Tree, queries: Float[Array, "m d"], /) -> Int[Array, " m"]:
