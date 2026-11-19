@@ -74,6 +74,7 @@ nav:
         - 'how-to/use-under-jit-vmap-grad.md'
         - 'how-to/find-the-nearest-point-with-another-label.md'
         - 'how-to/tune-for-large-k-or-high-dimension.md'
+        - 'how-to/use-several-cpu-cores.md'
     - Explanation:
         - 'comparison.md'
         - 'how-it-works.md'

@@ -106,6 +106,8 @@ JAX_PLATFORMS = { value = "cpu", skip_if_set = true }
 [tool.coverage]
 report.exclude_also = ['\.\.\.', 'if TYPE_CHECKING:']
 run.branch = true
+# Count the multi-device test's child process.
+run.patch = ["subprocess"]
 run.source = ["jaxknn"]
 
 
