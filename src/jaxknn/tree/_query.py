@@ -22,6 +22,7 @@ Sentinels: tree positions use ``tree.n_pad``; original indices use ``tree.n``.
 
 __all__: tuple[str, ...] = ("all_knn", "knn", "locate_leaves", "node_labels")
 
+import functools
 import math
 from collections.abc import Callable
 
@@ -411,10 +412,6 @@ def _query(
     if exclude is not None:
         per_q.append(pad(exclude[2], 0))
 
-    def local(shared: tuple, *q: Array) -> tuple[Array, Array]:
-        ex = None if exclude is None else (shared[1], shared[2], q[4])
-        return _query_local(shared[0], *q[:4], k, frontier, ex)
-
     mesh = jax.sharding.Mesh(np.asarray(devs), ("q",))
     # Pin the inputs as replicated: otherwise, inside an outer jit, the P("q")
     # in_specs propagate back into whatever built them (the tree build in
@@ -422,15 +419,32 @@ def _query(
     shared, per_q = jax.lax.with_sharding_constraint(
         (shared, per_q), jax.sharding.NamedSharding(mesh, P())
     )
+    sharded = _sharded_query(tuple(devs), k, frontier, exclude is not None)
+    dd, ii = sharded(shared, *per_q)
+    return dd[:nq], ii[:nq]
+
+
+@functools.cache
+def _sharded_query(devs: tuple, k: int, frontier: int, has_exclude: bool) -> Callable:  # noqa: FBT001
+    """Build the jitted ``shard_map`` query once per setting.
+
+    Cached so that eager calls reuse one compiled program instead of
+    recompiling a fresh closure every time.
+    """
+
+    def local(shared: tuple, *q: Array) -> tuple[Array, Array]:
+        ex = (shared[1], shared[2], q[4]) if has_exclude else None
+        return _query_local(shared[0], *q[:4], k, frontier, ex)
+
+    nq_args = 5 if has_exclude else 4
     sharded = jax.shard_map(
         local,
-        mesh=mesh,
-        in_specs=(P(), *(P("q") for _ in per_q)),
+        mesh=jax.sharding.Mesh(np.asarray(devs), ("q",)),
+        in_specs=(P(), *(P("q") for _ in range(nq_args))),
         out_specs=P("q"),
         check_vma=False,  # carries built inside the query start unvarying
     )
-    dd, ii = jax.jit(sharded)(shared, *per_q)  # eager shard_map segfaults
-    return dd[:nq], ii[:nq]
+    return jax.jit(sharded)  # eager shard_map segfaults
 
 
 def locate_leaves(tree: Tree, queries: Float[Array, "m d"], /) -> Int[Array, " m"]:
